@@ -13,6 +13,9 @@ repositories {
     flatDir {
     	dirs "${javaHome}/lib", 'libs'
     }
+    maven {
+        url  "https://dl.bintray.com/abdullin/maven"
+    }
 }
 
 java {
@@ -25,6 +28,11 @@ dependencies {
     implementation name: 'javassist' //'org.javassist:javassist:3.26.0-GA'
     implementation name: 'tools'
     testImplementation 'junit:junit:4.11'
+    implementation 'org.jetbrains.research:descriptor:1.0'
+    implementation name: 'kex-runner-0.0.1-jar-with-dependencies'
+
+    // https://mvnrepository.com/artifact/args4j/args4j
+    compile group: 'args4j', name: 'args4j', version: '2.33'
 }
 
 group = 'jbse'

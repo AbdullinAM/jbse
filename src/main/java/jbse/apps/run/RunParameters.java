@@ -81,6 +81,18 @@ import jbse.val.ReferenceSymbolic;
  * @author Pietro Braione
  */
 public final class RunParameters implements Cloneable {
+    public Path getKexConfig() {
+        return kexConfig;
+    }
+
+    public void setKexConfig(Path kexConfig) {
+        this.kexConfig = kexConfig;
+    }
+
+    public void setKexConfig(String kexConfig) {
+        this.kexConfig = Paths.get(kexConfig);
+    }
+
     /**
      * Enumeration of the possible decision procedures.
      * 
@@ -296,7 +308,9 @@ public final class RunParameters implements Cloneable {
          * covers all the symbolic states according to the
          * step show mode.  
          */
-        JUNIT_TEST
+        JUNIT_TEST,
+
+        DESCRIPTOR
     }
 
     /** The runner parameters. */
@@ -435,6 +449,8 @@ public final class RunParameters implements Cloneable {
 
     /** The signature of the driver method when guided == true. */
     private Signature driverSignature = null;
+
+    private Path kexConfig;
     
     /** The number of hits when guided == true. */
     private int numberOfHits = 1;
@@ -766,6 +782,10 @@ public final class RunParameters implements Cloneable {
      */
     public Classpath getClasspath() throws IOException {
         return this.runnerParameters.getClasspath();
+    }
+
+    public Path getUserClasspath() throws IOException {
+        return this.runnerParameters.getClasspath().userClassPath().iterator().next();
     }
 
     /**

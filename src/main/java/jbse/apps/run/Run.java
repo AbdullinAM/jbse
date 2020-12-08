@@ -2,6 +2,7 @@ package jbse.apps.run;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -14,16 +15,7 @@ import jbse.algo.exc.CannotManageStateException;
 import jbse.algo.exc.MetaUnsupportedException;
 import jbse.algo.exc.NotYetImplementedException;
 import jbse.algo.exc.UninterpretedUnsupportedException;
-import jbse.apps.DecisionProcedureDecoratorPrint;
-import jbse.apps.DecisionProcedureDecoratorTimer;
-import jbse.apps.IO;
-import jbse.apps.Formatter;
-import jbse.apps.StateFormatterGraphviz;
-import jbse.apps.StateFormatterJUnitTestSuite;
-import jbse.apps.StateFormatterText;
-import jbse.apps.StateFormatterPath;
-import jbse.apps.Timer;
-import jbse.apps.Util;
+import jbse.apps.*;
 import jbse.apps.run.RunParameters.DecisionProcedureCreationStrategy;
 import jbse.apps.run.RunParameters.DecisionProcedureType;
 import jbse.apps.run.RunParameters.GuidanceType;
@@ -743,6 +735,9 @@ public final class Run {
             err(ERROR_UNEXPECTED);
             err(e);
             return 2;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return 2;
         }
 
         return 0;
@@ -824,7 +819,7 @@ public final class Run {
      * 
      * @throws CannotBuildFormatterException upon failure.
      */
-    private void createFormatter() throws CannotBuildFormatterException {
+    private void createFormatter() throws CannotBuildFormatterException, IOException {
         final StateFormatMode type = this.parameters.getStateFormatMode();
         if (type == StateFormatMode.FULLTEXT) {
             this.formatter = new StateFormatterText(this.parameters.getSourcePath(), true);
@@ -836,6 +831,8 @@ public final class Run {
             this.formatter = new StateFormatterPath();
         } else if (type == StateFormatMode.JUNIT_TEST) {
             this.formatter = new StateFormatterJUnitTestSuite(this::getInitialState, this::getModel);
+        } else if (type == StateFormatMode.DESCRIPTOR) {
+            this.formatter = new StateFormatterDescriptor(this.parameters.getKexConfig(), this.parameters.getUserClasspath(), this::getInitialState, this::getModel);
         } else {
             throw new CannotBuildFormatterException(ERROR_UNDEF_STATE_FORMAT);
         }
