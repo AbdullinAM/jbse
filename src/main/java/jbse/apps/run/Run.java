@@ -832,7 +832,9 @@ public final class Run {
         } else if (type == StateFormatMode.JUNIT_TEST) {
             this.formatter = new StateFormatterJUnitTestSuite(this::getInitialState, this::getModel);
         } else if (type == StateFormatMode.DESCRIPTOR) {
-            this.formatter = new StateFormatterDescriptor(this.parameters.getKexConfig(), this.parameters.getUserClasspath(), this::getInitialState, this::getModel);
+            this.formatter = new StateFormatterDescriptor(this.parameters.getKexConfig(), this.parameters.getUserClasspath(),
+                    this.parameters.getaPackage(),
+                    this::getInitialState, this::getModel);
         } else {
             throw new CannotBuildFormatterException(ERROR_UNDEF_STATE_FORMAT);
         }

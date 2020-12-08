@@ -37,6 +37,7 @@ import jbse.rules.ClassInitRulesRepo;
 import jbse.rules.LICSRulesRepo;
 import jbse.rules.TriggerRulesRepo;
 import jbse.val.ReferenceSymbolic;
+import org.jetbrains.research.kfg.Package;
 
 /**
  * Encapsulates a {@link Run}'s parameters. The most
@@ -92,6 +93,19 @@ public final class RunParameters implements Cloneable {
     public void setKexConfig(String kexConfig) {
         this.kexConfig = Paths.get(kexConfig);
     }
+
+    public Package getaPackage() {
+        return aPackage;
+    }
+
+    public void setAPackage(Package aPackage) {
+        this.aPackage = aPackage;
+    }
+
+    public void setAPackage(String aPackage) {
+        this.aPackage = new Package(aPackage);
+    }
+
 
     /**
      * Enumeration of the possible decision procedures.
@@ -451,6 +465,8 @@ public final class RunParameters implements Cloneable {
     private Signature driverSignature = null;
 
     private Path kexConfig;
+
+    private Package aPackage;
     
     /** The number of hits when guided == true. */
     private int numberOfHits = 1;

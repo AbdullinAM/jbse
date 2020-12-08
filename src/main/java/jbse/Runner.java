@@ -2,11 +2,17 @@ package jbse;
 
 import jbse.apps.run.Run;
 import jbse.apps.run.RunParameters;
+import jbse.bc.Signature;
+import org.jetbrains.research.kfg.Package;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
+import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.MethodNode;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -28,14 +34,8 @@ public class Runner {
     @Option(name = "-kex", usage = "kex config path", required = true)
     private String kexConf;
 
-    @Option(name = "-klass", usage = "target klass", required = true)
-    private String klass;
-
-    @Option(name = "-method", usage = "target method name", required = true)
-    private String methodName;
-
-    @Option(name = "-desc", usage = "target method descriptor", required = true)
-    private String desc;
+    @Option(name = "-target", usage = "target package", required = true)
+    private String targetPackage;
 
     public static void main(String[] args) throws IOException {
         try {
@@ -63,20 +63,59 @@ public class Runner {
         }
 
         final RunParameters p = new RunParameters();
-        set(p);
-        final Run r = new Run(p);
-        r.run();
+        initParams(p);
+        run(p, p.getUserClasspath());
     }
 
-    private void set(RunParameters p) {
+    private void initParams(RunParameters p) {
         p.addUserClasspath(userClassPath);
         p.setJBSELibPath(jbseLib);
-        p.setMethodSignature(klass, desc, methodName);
         p.setKexConfig(kexConf);
         p.setDecisionProcedureType(Z3);
         p.setExternalDecisionProcedurePath("/usr/bin/z3");
         p.setOutputFileName("./out/runIf_z3.txt");
         p.setStateFormatMode(DESCRIPTOR);
         p.setStepShowMode(LEAVES);
+        p.setAPackage(targetPackage);
+    }
+
+    private static List<Signature> getMethodsFromJar(Path jarPath, org.jetbrains.research.kfg.Package pkg) throws IOException {
+        List<Signature> result = new ArrayList<>();
+        JarFile jar = new JarFile(jarPath.toFile());
+        Enumeration<JarEntry> entries = jar.entries();
+        while (entries.hasMoreElements()) {
+            JarEntry entry = entries.nextElement();
+            if (entry.getName().endsWith(".class") && pkg.isParent(entry.getName())) {
+                result.addAll(getSignaturesFromKlass(jar, entry));
+            }
+        }
+        return result;
+    }
+
+    private static List<Signature> getSignaturesFromKlass(JarFile file, JarEntry klass) throws IOException {
+        ClassNode node = readClassNode(file.getInputStream(klass));
+        List<Signature> result = new ArrayList<>();
+        for (MethodNode mn : node.methods) {
+            result.add(new Signature(node.name, mn.desc, mn.name));
+        }
+        return result;
+    }
+
+    private static ClassNode readClassNode(InputStream input) throws IOException {
+        ClassReader classReader = new ClassReader(input);
+        ClassNode classNode = new ClassNode();
+        classReader.accept(classNode, 0);
+        return classNode;
+    }
+
+    private void run(RunParameters init, Path jarFile) throws IOException {
+        List<Signature> methods = getMethodsFromJar(jarFile, init.getaPackage());
+        for (Signature method : methods) {
+            System.out.println("Running on method " + method);
+            RunParameters newParams = init.clone();
+            newParams.setMethodSignature(method.getClassName(), method.getDescriptor(), method.getName());
+            final Run r = new Run(newParams);
+            r.run();
+        }
     }
 }

@@ -26,15 +26,16 @@ public class StateFormatterDescriptor implements Formatter {
     private final Supplier<Map<PrimitiveSymbolic, Simplex>> modelSupplier;
     private final Supplier<State> initialStateSupplier;
 
-    private static void initReanimator(Path kexCong, Path sourcePaths) {
-        runner = new ReanimatorRunner(kexCong, sourcePaths);
+    private static void initReanimator(Path kexConf, Path sourcePaths, org.jetbrains.research.kfg.Package pkg) {
+        runner = new ReanimatorRunner(kexConf.toAbsolutePath(), sourcePaths, pkg);
     }
 
-    public StateFormatterDescriptor(Path kexCong, Path sourcePaths, Supplier<State> initialStateSupplier, Supplier<Map<PrimitiveSymbolic, Simplex>> modelSupplier) {
+    public StateFormatterDescriptor(Path kexCong, Path sourcePaths, org.jetbrains.research.kfg.Package pkg,
+                                    Supplier<State> initialStateSupplier, Supplier<Map<PrimitiveSymbolic, Simplex>> modelSupplier) {
         this.initialStateSupplier = initialStateSupplier;
         this.modelSupplier = modelSupplier;
         if (runner == null)
-            initReanimator(kexCong, sourcePaths);
+            initReanimator(kexCong, sourcePaths, pkg);
     }
 
     @Override
@@ -48,11 +49,15 @@ public class StateFormatterDescriptor implements Formatter {
 
     @Override
     public String emit() {
-        Map<Desc, CallStack> stacks = runner.convert(topLevelSymbols.stream().map(descriptors::get).collect(Collectors.toSet()));
         CallStack stack = null;
         try {
-            stack = getInvocationOfMethodUnderTest(initialStateSupplier.get(), stacks);
-        } catch (ThreadStackEmptyException | FrozenStateException e) {
+            Map<Desc, CallStack> stacks = runner.convert(topLevelSymbols.stream().map(descriptors::get).collect(Collectors.toSet()));
+            Map<String, CallStack> namedStacks = stacks.entrySet().stream().collect(Collectors.toMap(
+                    descCallStackEntry -> descCallStackEntry.getKey().getName(),
+                    Map.Entry::getValue
+            ));
+            stack = getInvocationOfMethodUnderTest(initialStateSupplier.get(), namedStacks);
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return (stack != null ? runner.printCallStack(stack) : "null") + "\n\n";
@@ -74,12 +79,17 @@ public class StateFormatterDescriptor implements Formatter {
                 final long heapPosition = clauseExpands.getHeapPosition();
                 final String klass = getTypeOfObjectInHeap(state, heapPosition);
                 makeVariableFor(symbol);
-                addDescriptor(symbol, new ObjectDesc(parseType(klass), getVariableFor(symbol)), model);
+                String type = parseType(klass);
+                if (type.endsWith("[]")) {
+                    addDescriptor(symbol, new ArrayDesc(getVariableFor(symbol), type, type.substring(0, type.length() - 2)), model);
+                } else {
+                    addDescriptor(symbol, new ObjectDesc(type, getVariableFor(symbol)), model);
+                }
             } else if (clause instanceof ClauseAssumeNull) {
                 final ClauseAssumeNull clauseNull = (ClauseAssumeNull) clause;
                 final ReferenceSymbolic symbol = clauseNull.getReference();
                 makeVariableFor(symbol);
-                addDescriptor(symbol, new NullDesc(), model);
+                addDescriptor(symbol, new NullDesc(getVariableFor(symbol)), model);
             } else if (clause instanceof ClauseAssumeAliases) {
                 final ClauseAssumeAliases clauseAliases = (ClauseAssumeAliases) clause;
                 final Symbolic symbol = clauseAliases.getReference();
@@ -146,15 +156,22 @@ public class StateFormatterDescriptor implements Formatter {
         } else if (object instanceof ReferenceSymbolicMemberField) {
             ReferenceSymbolicMemberField memberField = (ReferenceSymbolicMemberField) object;
             ReferenceSymbolic objectSymbolic = memberField.getContainer();
-            DescField field = new DescField(memberField.getFieldName(), parseType(memberField.getStaticType()));
+            DescField field = new DescField(memberField.getFieldName(), parseType(memberField.getFieldClass()));
             ObjectDesc objectDesc = (ObjectDesc) descriptors.get(objectSymbolic);
             objectDesc.addField(field, value);
         } else if (object instanceof PrimitiveSymbolicMemberArray) {
             PrimitiveSymbolicMemberArray memberArray = (PrimitiveSymbolicMemberArray) object;
             ReferenceSymbolic array = memberArray.getContainer();
             ArrayDesc arrayDesc = (ArrayDesc) descriptors.get(array);
-            PrimitiveSymbolic index = (PrimitiveSymbolic) memberArray.getIndex();
-            Simplex resolvedValue = model.get(index);
+            Simplex resolvedValue;
+            Primitive index = memberArray.getIndex();
+            if (index instanceof PrimitiveSymbolic) {
+                resolvedValue = model.get(index);
+            } else if (index instanceof Simplex) {
+                resolvedValue = (Simplex) index;
+            } else {
+                throw new IllegalStateException();
+            }
             arrayDesc.addElement(Integer.parseInt(resolvedValue.toString()), value);
         } else if (object instanceof PrimitiveSymbolicMemberField) {
             PrimitiveSymbolicMemberField memberField = (PrimitiveSymbolicMemberField) object;
@@ -162,6 +179,11 @@ public class StateFormatterDescriptor implements Formatter {
             DescField field = new DescField(memberField.getFieldName(), parseType(Character.toString(memberField.getType())));
             ObjectDesc objectDesc = (ObjectDesc) descriptors.get(objectSymbolic);
             objectDesc.addField(field, value);
+        } else if (object instanceof PrimitiveSymbolicMemberArrayLength) {
+            PrimitiveSymbolicMemberArrayLength memberArray = (PrimitiveSymbolicMemberArrayLength) object;
+            ReferenceSymbolic array = memberArray.getContainer();
+            ArrayDesc arrayDesc = (ArrayDesc) descriptors.get(array);
+            arrayDesc.setLength(Integer.parseInt(value.getName().replace("L", "")));
         } else {
             topLevelSymbols.add(object);
         }
@@ -265,18 +287,13 @@ public class StateFormatterDescriptor implements Formatter {
     }
 
 
-    private CallStack getInvocationOfMethodUnderTest(State initialState, Map<Desc, CallStack> stacks) throws ThreadStackEmptyException, FrozenStateException {
+    private CallStack getInvocationOfMethodUnderTest(State initialState, Map<String, CallStack> stacks) throws ThreadStackEmptyException, FrozenStateException {
         if (initialState == null) return null;
 
-        Map<String, CallStack> namedStacks = stacks.entrySet().stream().collect(Collectors.toMap(
-                descCallStackEntry -> descCallStackEntry.getKey().getName(),
-                Map.Entry::getValue
-        ));
-
-        CallStack thisStack = runner.convert(new NullDesc());
+        CallStack thisStack = runner.convert(new NullDesc("__ROOT_this"));
         final String methodName = initialState.getRootMethodSignature().getName();
         if ("this".equals(initialState.getRootFrame().getLocalVariableDeclaredName(0))) {
-            CallStack cs = namedStacks.get("__ROOT_this");
+            CallStack cs = stacks.get("__ROOT_this");
             if (cs != null) thisStack = cs;
         }
 
@@ -295,13 +312,18 @@ public class StateFormatterDescriptor implements Formatter {
             }
             final String variable = "__ROOT_" + lv.getName();
             if (this.symbolsToVariables.containsValue(variable)) {
-                args.add(namedStacks.get(variable));
+                CallStack arg = stacks.get(variable);
+                if (arg == null) {
+                    args.add(runner.convert(new NullDesc(variable)));
+                } else {
+                    args.add(arg);
+                }
             } else if (isPrimitiveIntegral(lv.getType().charAt(0))) {
                 args.add(runner.convert(new ConstantDesc("0", parseType(lv.getType()))));
             } else if (isPrimitiveFloating(lv.getType().charAt(0))) {
                 args.add(runner.convert(new ConstantDesc("0.0", parseType(lv.getType()))));
             } else {
-                args.add(runner.convert(new NullDesc()));
+                args.add(runner.convert(new NullDesc(variable)));
             }
             ++currentParam;
         }
