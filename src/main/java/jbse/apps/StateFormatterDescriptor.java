@@ -140,6 +140,8 @@ public class StateFormatterDescriptor implements Formatter {
             case '[':
                 return parseType(desc.substring(1)) + "[]";
             default:
+                if (desc.startsWith("L") && desc.endsWith(";"))
+                    return parseType(desc.substring(1, desc.length() - 1));
                 return desc.replaceAll("/", ".");
         }
     }
@@ -156,7 +158,7 @@ public class StateFormatterDescriptor implements Formatter {
         } else if (object instanceof ReferenceSymbolicMemberField) {
             ReferenceSymbolicMemberField memberField = (ReferenceSymbolicMemberField) object;
             ReferenceSymbolic objectSymbolic = memberField.getContainer();
-            DescField field = new DescField(memberField.getFieldName(), parseType(memberField.getFieldClass()));
+            DescField field = new DescField(memberField.getFieldName(), parseType(memberField.getStaticType()));
             ObjectDesc objectDesc = (ObjectDesc) descriptors.get(objectSymbolic);
             objectDesc.addField(field, value);
         } else if (object instanceof PrimitiveSymbolicMemberArray) {
