@@ -8,6 +8,7 @@ import jbse.mem.exc.ThreadStackEmptyException;
 import jbse.val.*;
 import org.jetbrains.research.kex.ReanimatorRunner;
 import org.jetbrains.research.kex.descriptor.*;
+import org.jetbrains.research.kex.reanimator.NoConcreteInstanceException;
 import org.jetbrains.research.kex.reanimator.callstack.CallStack;
 
 import java.nio.file.Path;
@@ -57,6 +58,8 @@ public class StateFormatterDescriptor implements Formatter {
                     Map.Entry::getValue
             ));
             stack = getInvocationOfMethodUnderTest(initialStateSupplier.get(), namedStacks);
+        } catch (NoConcreteInstanceException e) {
+            System.err.println("No concrete instantce of klass " + e.getKlass());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -289,7 +292,8 @@ public class StateFormatterDescriptor implements Formatter {
     }
 
 
-    private CallStack getInvocationOfMethodUnderTest(State initialState, Map<String, CallStack> stacks) throws ThreadStackEmptyException, FrozenStateException {
+    private CallStack getInvocationOfMethodUnderTest(State initialState, Map<String, CallStack> stacks)
+            throws ThreadStackEmptyException, FrozenStateException, NoConcreteInstanceException {
         if (initialState == null) return null;
 
         CallStack thisStack = runner.convert(new NullDesc("__ROOT_this"));

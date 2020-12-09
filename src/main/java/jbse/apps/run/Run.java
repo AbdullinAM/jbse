@@ -1065,6 +1065,23 @@ public final class Run {
     /**
      * Prints statistics.
      */
+    public Statistics getFinalStatistics() {
+        final long pathsViolatingAssumptions =
+            this.runner.getPathsTotal() -
+                    this.pathsSafe -
+                    this.pathsUnsafe -
+                    this.runner.getPathsOutOfScope() -
+                    this.pathsUnmanageable;
+        return new Statistics(
+                this.runner.getPathsTotal(),
+                this.pathsSafe,
+                this.pathsUnsafe,
+                this.pathsConcretizableOutOfScope,
+                pathsViolatingAssumptions,
+                this.pathsUnmanageable
+        );
+    }
+
     private void printFinalStats() {
         final long elapsedTime = this.runner.getStopTime() - this.runner.getStartTime();
         final long elapsedTimePreInitialPhase = (this.timestampPreInitialPhaseEnd - this.runner.getStartTime());

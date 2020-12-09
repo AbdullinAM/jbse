@@ -2,6 +2,7 @@ package jbse;
 
 import jbse.apps.run.Run;
 import jbse.apps.run.RunParameters;
+import jbse.apps.run.Statistics;
 import jbse.bc.Signature;
 import org.jetbrains.research.kfg.Package;
 import org.kohsuke.args4j.CmdLineException;
@@ -64,7 +65,8 @@ public class Runner {
 
         final RunParameters p = new RunParameters();
         initParams(p);
-        run(p, p.getUserClasspath());
+        Statistics res = run(p, p.getUserClasspath());
+        System.out.println(res);
     }
 
     private void initParams(RunParameters p) {
@@ -108,7 +110,8 @@ public class Runner {
         return classNode;
     }
 
-    private void run(RunParameters init, Path jarFile) throws IOException {
+    private Statistics run(RunParameters init, Path jarFile) throws IOException {
+        Statistics result = new Statistics();
         List<Signature> methods = getMethodsFromJar(jarFile, init.getaPackage());
         for (Signature method : methods) {
             System.out.println("Running on method " + method);
@@ -116,6 +119,8 @@ public class Runner {
             newParams.setMethodSignature(method.getClassName(), method.getDescriptor(), method.getName());
             final Run r = new Run(newParams);
             r.run();
+            result = result.plus(r.getFinalStatistics());
         }
+        return result;
     }
 }
