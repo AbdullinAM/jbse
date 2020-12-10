@@ -32,7 +32,7 @@ dependencies {
     implementation name: 'kex-runner-0.0.1-jar-with-dependencies'
     implementation 'org.ow2.asm:asm:7.3.1'
     // https://mvnrepository.com/artifact/args4j/args4j
-    compile group: 'args4j', name: 'args4j', version: '2.33'
+    implementation group: 'args4j', name: 'args4j', version: '2.33'
 }
 
 group = 'jbse'
@@ -65,11 +65,16 @@ build.dependsOn 'shadowJar'
 
 jar {
     manifest {
+        attributes "Main-Class": "jbse.Runner"
         attributes 'Specification-Title': 'Java Virtual Machine Specification',
                    'Specification-Vendor': 'Oracle Corporation',
                    'Specification-Version': '1.8',
                    'Implementation-Title': description,
                    'Implementation-Vendor': 'University of Milano-Bicocca',
                    'Implementation-Version': archiveVersion
+    }
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
     }
 }
