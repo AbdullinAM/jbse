@@ -45,6 +45,8 @@ public class StateFormatterDescriptor implements Formatter {
             initDescriptors(s, modelSupplier.get());
         } catch (FrozenStateException e) {
             e.printStackTrace();
+        } catch (NullPointerException e) {
+            System.out.println(e.getMessage());
         }
     }
 
@@ -188,7 +190,7 @@ public class StateFormatterDescriptor implements Formatter {
             PrimitiveSymbolicMemberArrayLength memberArray = (PrimitiveSymbolicMemberArrayLength) object;
             ReferenceSymbolic array = memberArray.getContainer();
             ArrayDesc arrayDesc = (ArrayDesc) descriptors.get(array);
-            arrayDesc.setLength(Integer.parseInt(value.getName().replace("L", "")));
+            arrayDesc.setLength((int) Long.parseLong(value.getName().replace("L", "")));
         } else {
             topLevelSymbols.add(object);
         }
