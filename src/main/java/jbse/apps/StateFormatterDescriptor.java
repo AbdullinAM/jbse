@@ -151,15 +151,26 @@ public class StateFormatterDescriptor implements Formatter {
         }
     }
 
+    private Simplex resolvePrimitive(Primitive primitive, Map<PrimitiveSymbolic, Simplex> model) {
+        Simplex resolvedValue;
+        if (primitive instanceof PrimitiveSymbolic) {
+            resolvedValue = model.get(primitive);
+        } else if (primitive instanceof Simplex) {
+            resolvedValue = (Simplex) primitive;
+        } else {
+            throw new IllegalStateException();
+        }
+        return resolvedValue;
+    }
+
     private void addDescriptor(Symbolic object, Desc value, Map<PrimitiveSymbolic, Simplex> model) {
         descriptors.put(object, value);
         if (object instanceof ReferenceSymbolicMemberArray) {
             ReferenceSymbolicMemberArray memberArray = (ReferenceSymbolicMemberArray) object;
             ReferenceSymbolic array = memberArray.getContainer();
             ArrayDesc arrayDesc = (ArrayDesc) descriptors.get(array);
-            PrimitiveSymbolic index = (PrimitiveSymbolic) memberArray.getIndex();
-            Simplex resolvedValue = model.get(index);
-            arrayDesc.addElement(Integer.parseInt(resolvedValue.toString()), value);
+            Simplex index = resolvePrimitive(memberArray.getIndex(), model);
+            arrayDesc.addElement(Integer.parseInt(index.toString()), value);
         } else if (object instanceof ReferenceSymbolicMemberField) {
             ReferenceSymbolicMemberField memberField = (ReferenceSymbolicMemberField) object;
             ReferenceSymbolic objectSymbolic = memberField.getContainer();
@@ -170,16 +181,8 @@ public class StateFormatterDescriptor implements Formatter {
             PrimitiveSymbolicMemberArray memberArray = (PrimitiveSymbolicMemberArray) object;
             ReferenceSymbolic array = memberArray.getContainer();
             ArrayDesc arrayDesc = (ArrayDesc) descriptors.get(array);
-            Simplex resolvedValue;
-            Primitive index = memberArray.getIndex();
-            if (index instanceof PrimitiveSymbolic) {
-                resolvedValue = model.get(index);
-            } else if (index instanceof Simplex) {
-                resolvedValue = (Simplex) index;
-            } else {
-                throw new IllegalStateException();
-            }
-            arrayDesc.addElement(Integer.parseInt(resolvedValue.toString()), value);
+            Simplex index = resolvePrimitive(memberArray.getIndex(), model);
+            arrayDesc.addElement(Integer.parseInt(index.toString()), value);
         } else if (object instanceof PrimitiveSymbolicMemberField) {
             PrimitiveSymbolicMemberField memberField = (PrimitiveSymbolicMemberField) object;
             ReferenceSymbolic objectSymbolic = memberField.getContainer();
